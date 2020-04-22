@@ -2,7 +2,7 @@
 
 A shiny app for the incredibly fun game called Fish Bowl. This was a fun project to do while stuck at home during COVID-19 panademic but also, my first attempt buliding a Shiny App. It's not perfect but enough to have hours of fun with friends. It is publically available through [Shiny APPS IO](https://www.shinyapps.io) at my web link https://kmoha.shinyapps.io/fishbowl/. Feel free to make suggestions to improve it as I always love learning new and creative ideas. 
 
-Since this was my first Shiny APP, I will credit some of my ideas and coding structure that I used in this Shiny APP came from my friend, Connor Jo Lewis and her similar APP called [BOWLS!](https://github.com/connorlewis/bowls-app). You can visit her GitHub site to see her version as well.
+Since this was my first Shiny APP, I will credit some of my ideas and coding structure that I used in this Shiny APP came from my friend, Connor Jo Lewis from her similar APP called [BOWLS!](https://github.com/connorlewis/bowls-app). You can visit her GitHub site to see her version as well.
 
 As a side note, I am using a free version of Shiny IO so I only have 25 free hours per month to use it. Feel free to view it but please try to limit your time on it. Thanks and have fun!
 
