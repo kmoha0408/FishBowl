@@ -1,0 +1,25 @@
+@import url("https://fonts.googleapis.com/css2?family=Baloo+Bhaina+2&family=Quicksand:wght@500&display=swap");
+
+h1 {
+  font-family: 'Baloo Bhaina 2', cursive;
+  font-weight: 500;
+  line-height: 1.1;
+  color: #ad1d28;
+}
+
+h3{
+  font-family: 'Quicksand', sans-serif
+}
+
+h4{
+  font-family: 'Quicksand', sans-serif
+}
+
+h5{
+  font-family: 'Quicksand', sans-serif
+}
+
+hr{
+  border-top: 2px solid #FFFFFF
+}
+body {background-color: #DBF3FA;}
