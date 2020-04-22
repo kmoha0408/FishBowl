@@ -5,21 +5,28 @@ h1 {
   font-weight: 500;
   line-height: 1.1;
   color: #ad1d28;
+  overflow: auto;
 }
 
 h3{
-  font-family: 'Quicksand', sans-serif
+  font-family: 'Quicksand', sans-serif;
+  overflow: auto;
 }
 
 h4{
-  font-family: 'Quicksand', sans-serif
+  font-family: 'Quicksand', sans-serif;
+  overflow: auto;
 }
 
 h5{
-  font-family: 'Quicksand', sans-serif
+  font-family: 'Quicksand', sans-serif;
+  overflow: auto;
 }
 
 hr{
-  border-top: 2px solid #FFFFFF
+  border-top: 2px solid #FFFFFF;
+  overflow: auto;
 }
-body {background-color: #DBF3FA; overflow: auto;}
+
+body {background-color: #DBF3FA; 
+  overflow: auto;}
