@@ -27,9 +27,6 @@ ui <- miniPage(
         
         miniTabPanel("Set Up", icon = icon("user-friends"),
             br(),
-            write_csv(data.frame(name = character(), score = numeric()), "team1.csv"),
-            write_csv(data.frame(name = character(), score = numeric()), "team2.csv"),
-            write_csv(data.frame(words = character()), "bowl.csv"),
             uiOutput("Setup")),
 
         miniTabPanel("Game", icon = icon("play"),
@@ -55,6 +52,8 @@ server <- function(input, output, session) {
     remaining_words <- reactiveValues(data = NULL)
     team1_players <- reactiveValues(data = NULL)
     team2_players <- reactiveValues(data = NULL)
+    team1_names <- reactiveValues(data = character())
+    team2_names <- reactiveValues(data = character())
     player_up <- reactiveValues(name = NULL)
     word2guess <- reactiveValues(data = NULL)
     timer <- reactiveVal(60)
@@ -80,18 +79,15 @@ server <- function(input, output, session) {
         keep_words <- unlist(all_inputs[word_index])
         
         # Save the name, and team in members file and words in the bowl file
-        write.table(data.frame(words = keep_words), file = "bowl.csv", append = TRUE, row.names = FALSE, col.names = FALSE, quote = TRUE, sep = ",")
+        write_csv(tibble(words = keep_words), paste0(input$name, "_words.csv"))
         
         if(input$teamchoice == "Team 1") {
-            write.table(data.frame(name = input$name, score = 0), file = "team1.csv", append = TRUE, row.names = FALSE, col.names = FALSE, quote = TRUE, sep = ",")
-            team1_players$data <- read.csv("team1.csv", stringsAsFactors = FALSE)$name
-            score$s1 <- read.csv("team1.csv", stringsAsFactors = FALSE)$score
-            total$team1 <- sum(score$s1)
+
+            write_csv(tibble(name = input$name), paste0(input$name, "_team1.csv"))
+
         } else {
-            write.table(data.frame(name = input$name, score = 0), file = "team2.csv", append = TRUE, row.names = FALSE, col.names = FALSE, quote = TRUE, sep = ",")
-            team2_players$data <- read.csv("team2.csv", stringsAsFactors = FALSE)$name
-            score$s2 <- read.csv("team2.csv", stringsAsFactors = FALSE)$score
-            total$team2 <- sum(score$s2)
+            
+            write_csv(tibble(name = input$name), paste0(input$name, "_team2.csv"))
         }
 
         
@@ -141,18 +137,25 @@ server <- function(input, output, session) {
     ## Re-fill the bowl with the full list of words
     observeEvent({input$load_files}, {
         
-        if(is.logical(read.csv("bowl.csv")$words)) {
+        if(length(list.files()[str_detect(list.files(), "words.csv")]) == 0) {
             showModal(modalDialog(paste0("There are no words in the bowl. Go back to setup menu."), footer = NULL))
             Sys.sleep(2)
             removeModal()
         } else {
             
-            remaining_words$data <- read.csv("bowl.csv", stringsAsFactors = FALSE)$words
+            #remaining_words$data <- read.csv("bowl.csv", stringsAsFactors = FALSE)$words
+            remaining_words$data <- (list.files()[str_detect(list.files(), "words.csv")] %>% map_df(read.csv) %>% pull(words))
+            team1_players$data <- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv) %>% pull(name))
+            team2_players$data <- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv) %>% pull(name))
+            team1_names$data <- team1_players$data
+            team2_names$data <- team2_players$data
+            score$s1 <- rep(0, length(team1_players$data))
+            score$s2 <- rep(0, length(team2_players$data))
             
             if(step_counter$begin == 5) {
                 step_counter$begin <- 1
-                team1_players$data <- read.csv("team1.csv", stringsAsFactors = FALSE)$name
-                team2_players$data <- read.csv("team2.csv", stringsAsFactors = FALSE)$name
+                team1_players$data <- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv) %>% pull(name))
+                team2_players$data <- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv) %>% pull(name))
             }
             
             step_counter$begin <- step_counter$begin + 1
@@ -233,7 +236,7 @@ server <- function(input, output, session) {
                     
                     if(team_counter$data == 1) {
                         
-                        if(length(team2_players$data) == 0) {team2_players$data <- read.csv("team2.csv", stringsAsFactors = FALSE)$name}
+                        if(length(team2_players$data) == 0) {team2_players$data <- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv) %>% pull(name))}
                         
                         player_up$name <- sample(x = team2_players$data, size = 1)
                         team2_players$data <- team2_players$data[which(team2_players$data != player_up$name)]
@@ -241,7 +244,7 @@ server <- function(input, output, session) {
                         
                     } else {
                         
-                        if(length(team1_players$data) == 0) {team1_players$data <- read.csv("team1.csv", stringsAsFactors = FALSE)$name}
+                        if(length(team1_players$data) == 0) {team1_players$data <- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv) %>% pull(name))}
                         
                         player_up$name <- sample(x = team1_players$data, size = 1)
                         team1_players$data <- team1_players$data[which(team1_players$data != player_up$name)]
@@ -268,13 +271,14 @@ server <- function(input, output, session) {
             remaining_words$data <- remaining_words$data[which(remaining_words$data != word2guess$data)]
             
             if(team_counter$data == 1){
-                
-                index_player <- which(read.csv("team1.csv", stringsAsFactors = FALSE)$name == player_up$name)
+                all_pnames <- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv) %>% pull(name))
+                index_player <- which(all_pnames == player_up$name)
                 score$s1[index_player] <- score$s1[index_player]  + 1
                 total$team1 <- sum(score$s1)
                 
             } else {
-                index_player <- which(read.csv("team2.csv", stringsAsFactors = FALSE)$name == player_up$name)
+                all_pnames <- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv) %>% pull(name))
+                index_player <- which(all_pnames  == player_up$name)
                 score$s2[index_player] <- score$s2[index_player]  + 1
                 total$team2 <- sum(score$s2)
             }
@@ -327,10 +331,7 @@ server <- function(input, output, session) {
     observeEvent(input$new_game, {
         
         list.files()[str_detect(list.files(), "csv")] %>% map(file.remove)
-        
-        write_csv(data.frame(name = character(), score = numeric()), "team1.csv")
-        write_csv(data.frame(name = character(), score = numeric()), "team2.csv")
-        write_csv(data.frame(words = character()), "bowl.csv")
+    
         
         remaining_words$data <- NULL
         team1_players$data <- NULL
@@ -359,11 +360,11 @@ server <- function(input, output, session) {
     observe({
         
         output$table1 <- renderTable({
-            data.frame(Name = read.csv("team1.csv", stringsAsFactors = FALSE)$name, Score = score$s1)
+            data.frame(Name = team1_names$data, Score = score$s1)
         })
         
         output$table2 <- renderTable({ 
-            data.frame(Name = read.csv("team2.csv", stringsAsFactors = FALSE)$name, Score = score$s2)
+            data.frame(Name = team2_names$data, Score = score$s2)
         })
  
         
