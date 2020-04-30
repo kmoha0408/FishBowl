@@ -42,29 +42,31 @@ ui <- miniPage(
 )
 
 
+team1_df <- data.frame(Name = character(), Score = numeric())
+team2_df <- data.frame(Name = character(), Score = numeric())
 
+
+global <- reactiveValues(current_round = 1, 
+                         team_counter = 1, 
+                         step_counter = 1, 
+                         remaining_words = NULL,
+                         word2guess = NULL,
+                         team1_players = NULL, 
+                         team2_players = NULL, 
+                         player_up = NULL,
+                         t1score = 0,
+                         t2score = 0,
+                         team1total = 0, 
+                         team2total = 0)
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
     
     
     ## Reactive Data Values that are continuously updated and used
-    remaining_words <- reactiveValues(data = NULL)
-    team1_players <- reactiveValues(data = NULL)
-    team2_players <- reactiveValues(data = NULL)
-    team1_names <- reactiveValues(data = character())
-    team2_names <- reactiveValues(data = character())
-    player_up <- reactiveValues(name = NULL)
-    word2guess <- reactiveValues(data = NULL)
     timer <- reactiveVal(60)
     active <- reactiveVal(FALSE)
-    
-    team_counter <- reactiveValues(data = 1)
-    step_counter <- reactiveValues(begin = 1)
-    
-    current_round <- reactiveValues(r = 1)
-    score <- reactiveValues(s1 = numeric(), s2 = numeric())
-    total <- reactiveValues(team1 = 0, team2 = 0)
+
     
     
     ## Actions to happen after submit button is pressed
@@ -83,11 +85,11 @@ server <- function(input, output, session) {
         
         if(input$teamchoice == "Team 1") {
 
-            write_csv(tibble(name = input$name), paste0(input$name, "_team1.csv"))
+            write_csv(tibble(Name = input$name, Score = 0), paste0(input$name, "_team1.csv"))
 
         } else {
             
-            write_csv(tibble(name = input$name), paste0(input$name, "_team2.csv"))
+            write_csv(tibble(Name = input$name, Score = 0), paste0(input$name, "_team2.csv"))
         }
 
         
@@ -111,9 +113,9 @@ server <- function(input, output, session) {
     
     ## Let the player know what round it is
     output$CurrentRound <- reactive(
-        if(current_round$r == 1){
+        if(global$current_round == 1){
             "Round 1: Catch Phrase"
-        } else if (current_round$r == 2) {
+        } else if (global$current_round == 2) {
             "Round 2: Charades"
         } else {
             "Round 3: Password"
@@ -130,7 +132,7 @@ server <- function(input, output, session) {
     )
     
     output$WordsInBowl <- reactive(
-        paste0("There are ", length(remaining_words$data), " words in the bowl!")
+        paste0("There are ", length(remaining_words), " words in the bowl!")
         
     )
     
@@ -144,21 +146,23 @@ server <- function(input, output, session) {
         } else {
             
             #remaining_words$data <- read.csv("bowl.csv", stringsAsFactors = FALSE)$words
-            remaining_words$data <- (list.files()[str_detect(list.files(), "words.csv")] %>% map_df(read.csv) %>% pull(words))
-            team1_players$data <- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv) %>% pull(name))
-            team2_players$data <- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv) %>% pull(name))
-            team1_names$data <- team1_players$data
-            team2_names$data <- team2_players$data
-            score$s1 <- rep(0, length(team1_players$data))
-            score$s2 <- rep(0, length(team2_players$data))
+            remaining_words <<- (list.files()[str_detect(list.files(), "words.csv")] %>% map_df(read.csv, stringsAsFactors = FALSE) %>% pull(words))
+            team1_df <<- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv, stringsAsFactors = FALSE))
+            team2_df <<- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv, stringsAsFactors = FALSE))
+            write_csv(team1_df, "team1_df.csv")
+            write_csv(team2_df, "team2_df.csv")
+            global$team1_players <- team1_df$Name
+            global$team2_players <- team2_df$Name
+            global$t1score <- team1_df$Score
+            global$t2score <- team2_df$Score
             
-            if(step_counter$begin == 5) {
-                step_counter$begin <- 1
-                team1_players$data <- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv) %>% pull(name))
-                team2_players$data <- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv) %>% pull(name))
+            if(global$step_counter == 5) {
+                global$step_counter <- 1
+ 
             }
             
-            step_counter$begin <- step_counter$begin + 1
+            global$step_counter <- global$step_counter + 1
+            
         }
         
         
@@ -166,11 +170,11 @@ server <- function(input, output, session) {
     
     ## (Step 2) Team information and starting instruction
     output$TEAM1LIST <- reactive(
-        paste0("Team 1: ", paste(print(team1_players$data), collapse = ", ")) 
+        paste0("Team 1: ", paste(print(global$team1_players), collapse = ", ")) 
     )
     
     output$TEAM2LIST <- reactive(
-        paste0("Team 2: ", paste(print(team2_players$data), collapse = ", ")) 
+        paste0("Team 2: ", paste(print(global$team2_players), collapse = ", ")) 
     )
     
     output$STARTGAME <- reactive(
@@ -181,25 +185,26 @@ server <- function(input, output, session) {
         
         # Get the first player up
         if(input$teamfirst == "Team 1") {
-            team_counter$data <- 1
-            player_up$name <- sample(x = team1_players$data, size = 1)
-            team1_players$data <- team1_players$data[which(team1_players$data != player_up$name)]
+            global$team_counter  <- 1
+            global$player_up <- sample(x = global$team1_players, size = 1)
+            global$team1_players <- global$team1_players[which(global$team1_players != global$player_up)]
             
         } else {
-            team_counter$data <- 2
-            player_up$name <- sample(x = team2_players$data, size = 1)
-            team2_players$data <- team2_players$data[which(team2_players$data != player_up$name)]
+            global$team_counter <- 2
+            global$player_up  <- sample(x = global$team2_players, size = 1)
+            global$team2_players <- global$team2_players[which(global$team2_players != global$player_up)]
             
         }
         
-        step_counter$begin <- step_counter$begin + 1
+        global$step_counter <- global$step_counter + 1
+        
         
     })
     
     ## (Step 3) Show the current player and draw a word so long one is left
     
     output$CURRENT_PLAYER <- reactive(
-        paste0("It is ", print(player_up$name), "'s turn!")
+        paste0("It is ", print(global$player_up), "'s turn!")
     )
     
     output$TurnInstruction <- reactive(
@@ -208,11 +213,13 @@ server <- function(input, output, session) {
     
     observeEvent(input$begin_turn, {
         
-        word2guess$data <- sample(remaining_words$data, size = 1)
+        global$word2guess <- sample(global$remaining_words, size = 1)
         
         active(TRUE)
         
-        step_counter$begin <- step_counter$begin + 1
+        
+        global$step_counter <- global$step_counter + 1
+        
         
     })
     
@@ -228,27 +235,28 @@ server <- function(input, output, session) {
                 timer(timer() - 1)
                 if(timer() < 1) {
                     active(FALSE)
-                    showModal(modalDialog(paste0(print(player_up$name), ", your time is up!"), footer = NULL))
+                    showModal(modalDialog(paste0(print(global$player_up), ", your time is up!"), footer = NULL))
                     Sys.sleep(2)
                     removeModal()
                     timer(60)
-                    step_counter$begin <- 3
+                    global$step_counter <- 3
                     
-                    if(team_counter$data == 1) {
+                    
+                    if(global$team_counter == 1) {
                         
-                        if(length(team2_players$data) == 0) {team2_players$data <- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv) %>% pull(name))}
+                        if(length(global$team2_players) == 0) {global$team2_players <- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv, stringsAsFactors = FALSE) %>% pull(Name))}
                         
-                        player_up$name <- sample(x = team2_players$data, size = 1)
-                        team2_players$data <- team2_players$data[which(team2_players$data != player_up$name)]
-                        team_counter$data <- 2
+                        global$player_up <- sample(x = global$team2_players, size = 1)
+                        global$team2_players <- global$team2_players[which(global$team2_players != global$player_up)]
+                        global$team_counter <- 2
                         
                     } else {
                         
-                        if(length(team1_players$data) == 0) {team1_players$data <- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv) %>% pull(name))}
+                        if(length(global$team1_players) == 0) {global$team1_players <- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv, stringsAsFactors = FALSE) %>% pull(Name))}
                         
-                        player_up$name <- sample(x = team1_players$data, size = 1)
-                        team1_players$data <- team1_players$data[which(team1_players$data != player_up$name)]
-                        team_counter$data <- 1
+                        global$player_up <- sample(x = global$team1_players, size = 1)
+                        global$team1_players <- global$team1_players[which(global$team1_players != global$player_up)]
+                        global$team_counter <- 1
                     
                     }
                 }
@@ -261,40 +269,41 @@ server <- function(input, output, session) {
     )
     
     output$this_word <- reactive(
-        paste0(print(word2guess$data))
+        paste0(print(global$word2guess))
     )
     
     observeEvent(input$correct, {
         
-        if(length(remaining_words$data) != 0) {
-            word2guess$data <- sample(remaining_words$data, size = 1)
-            remaining_words$data <- remaining_words$data[which(remaining_words$data != word2guess$data)]
+        if(length(global$remaining_words) != 0) {
+            global$word2guess <- sample(global$remaining_words, size = 1)
+            global$remaining_words <- global$remaining_words[which(global$remaining_words != global$word2guess)]
             
-            if(team_counter$data == 1){
-                all_pnames <- (list.files()[str_detect(list.files(), "team1.csv")] %>% map_df(read.csv) %>% pull(name))
-                index_player <- which(all_pnames == player_up$name)
-                score$s1[index_player] <- score$s1[index_player]  + 1
-                total$team1 <- sum(score$s1)
+            if(global$team_counter == 1){
+                
+                global$t1score[which(team1_df$Name == global$player_up)] <- global$t1score[which(team1_df$Name == player_up$name)]  + 1
+                global$team1total <- sum(global$t1score)
                 
             } else {
-                all_pnames <- (list.files()[str_detect(list.files(), "team2.csv")] %>% map_df(read.csv) %>% pull(name))
-                index_player <- which(all_pnames  == player_up$name)
-                score$s2[index_player] <- score$s2[index_player]  + 1
-                total$team2 <- sum(score$s2)
+                
+                global$t2score[which(team2_df$Name == global$player_up)] <- global$t2score[which(team2_df$Name == player_up$name)]  + 1
+                global$team2total <- sum(global$t2score)
             }
             
         
         } else {
-            showModal(modalDialog(paste0(print(player_up$name), ", the bowl is empty!"), footer = NULL))
+            showModal(modalDialog(paste0(print(global$player_up), ", the bowl is empty!"), footer = NULL))
             Sys.sleep(2)
             removeModal()
             active(FALSE)
             timer(60)
-            if(current_round$r != 3) {
-                step_counter$begin <- 5
-                current_round$r <- current_round$r + 1
+            if(global$current_round != 3) {
+                global$step_counter <- 5
+                
+                global$current_round <- global$current_round + 1
+                
             } else {
-                step_counter$begin <- 6
+                global$step_counter <- 6
+                
             }
             
         }
@@ -302,16 +311,16 @@ server <- function(input, output, session) {
     
     observeEvent(input$pass, {
         
-        remaining_words$data <- c(remaining_words$data, word2guess$data)
-        word2guess$data <- sample(remaining_words$data, size = 1)
-        remaining_words$data <- remaining_words$data[which(remaining_words$data != word2guess$data)]
+        global$remaining_words <- c(global$remaining_words, global$word2guess)
+        global$word2guess <- sample(global$remaining_words, size = 1)
+        global$remaining_words <- global$remaining_words[which(global$remaining_words != global$word2guess)]
 
         
     })
     
     ## (step 5) Round done
     output$good_job <- reactive(
-        paste0("Good job everyone! You have finished round ", print(current_round$r))
+        paste0("Good job everyone! You have finished round ", print(global$current_round))
     )
     
     output$next_round <- reactive(
@@ -333,22 +342,19 @@ server <- function(input, output, session) {
         list.files()[str_detect(list.files(), "csv")] %>% map(file.remove)
     
         
-        remaining_words$data <- NULL
-        team1_players$data <- NULL
-        team2_players$data <- NULL
+        global$current_round <- 1
+        current_r <<- 1
+        team_counter <<- 1
+        step_counter <<- 1
+        scount$begin <- step_counter
+        remaining_words <<- c()
+        team1_df <<- data.frame(Name = character(), Score = numeric())
+        team2_df <<- data.frame(Name = character(), Score = numeric())
+        team1_players <<- c()
+        team2_players <<- c()
         player_up$name <- NULL
-        word2guess$data <- NULL
-        timer(60)
-        active(FALSE)
-        
-        team_counter$data <- 1
-        step_counter$begin <- 1
-        
-        current_round$r <- 1
-        score$s1 <- numeric()
-        score$s2 <- numeric()
-        total$team1 <- 0
-        total$team2 <- 0
+        team1total <<- 0
+        team2total <<- 0
         
         
         
@@ -359,17 +365,24 @@ server <- function(input, output, session) {
     
     observe({
         
+        if(global$step_counter != 1){
+            team1_df$Score <- global$t1score
+            team2_df$Score <- global$t2score
+        }
+        
+        write_csv(team1_df, "team1_df.csv")
+        write_csv(team2_df, "team2_df.csv")
         output$table1 <- renderTable({
-            data.frame(Name = team1_names$data, Score = score$s1)
+            read.csv("team1_df.csv", stringsAsFactors = FALSE)
         })
         
         output$table2 <- renderTable({ 
-            data.frame(Name = team2_names$data, Score = score$s2)
+            read.csv("team2_df.csv", stringsAsFactors = FALSE)
         })
  
         
-        output$Team1Points <- reactive(paste0("Team 1 Total Points: ", total$team1))
-        output$Team2Points <- reactive(paste0("Team 2 Total Points: ", total$team2))
+        output$Team1Points <- reactive(paste0("Team 1 Total Points: ", global$team1total))
+        output$Team2Points <- reactive(paste0("Team 2 Total Points: ", global$team2total))
         
         })
         
@@ -495,7 +508,7 @@ server <- function(input, output, session) {
             
             br(), br(), br(),
             
-            if(step_counter$begin == 1) {
+            if(global$step_counter == 1) {
                 
                 fillRow(
                     br(),
@@ -510,7 +523,7 @@ server <- function(input, output, session) {
                 
             },
             
-            if(step_counter$begin == 2) {
+            if(global$step_counter == 2) {
                 fillRow(
                     br(),
                     verticalLayout(
@@ -530,7 +543,7 @@ server <- function(input, output, session) {
                     ), flex = c(1, 2))
             },
             
-            if(step_counter$begin == 3) {
+            if(global$step_counter == 3) {
                 fillRow(
                     br(),
                     verticalLayout(
@@ -544,7 +557,7 @@ server <- function(input, output, session) {
                 flex = c(1,2))
             },
             
-            if(step_counter$begin == 4) {
+            if(global$step_counter == 4) {
               fillRow(
                   br(),
                   verticalLayout(
@@ -566,7 +579,7 @@ server <- function(input, output, session) {
               )  
             },
             
-            if(step_counter$begin == 5) {
+            if(global$step_counter == 5) {
                 fillRow(
                     br(),
                     verticalLayout(
@@ -579,7 +592,7 @@ server <- function(input, output, session) {
                     flex = c(1, 2))  
             },
             
-            if(step_counter$begin == 6) {
+            if(global$step_counter == 6) {
                 fillRow(
                     br(),
                     verticalLayout(
